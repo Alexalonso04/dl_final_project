@@ -35,7 +35,7 @@ Overall, these approaches represent a sample of state-of-the-art methods that we
 
 [9] What Matters In Transformers? Not All Attention is Needed, https://arxiv.org/abs/2406.15786
 
-[10]Eval Harness https://github.com/EleutherAI/lm-evaluation-harness
+[10] Eval Harness https://github.com/EleutherAI/lm-evaluation-harness
 
 ## Datasets
 FineWeb Edu 10B token Dataset: https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu/tree/main/sample/10BT
