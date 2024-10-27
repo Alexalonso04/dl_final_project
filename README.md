@@ -18,14 +18,23 @@ Overall, these approaches represent a sample of state-of-the-art methods that we
 
 ### Resource Papers:
 [1] Differential Transformer, https://arxiv.org/abs/2410.05258
+
 [2] Nano GPT:  https://github.com/karpathy/build-nanogpt
+
 [3] FineWeb-Edu Database: https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu/tree/main/sample/10BT
+
 [4] Modded NanoGPT: https://github.com/KellerJordan/modded-nanogpt
+
 [5] nGPT: Normalized Transformer with Representation Learning on the Hypersphere, https://arxiv.org/abs/2410.01131
+
 [6] Towards Small, Faster Decoder-Only Transformers: Architectural Variants and Their Implications, https://arxiv.org/abs/2404.14462
+
 [7]The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits, https://arxiv.org/abs/2402.17764
+
 [8] Selective Attention Improves Transformers, https://arxiv.org/abs/2410.02703
- [9] What Matters In Transformers? Not All Attention is Needed, https://arxiv.org/abs/2406.15786
+
+[9] What Matters In Transformers? Not All Attention is Needed, https://arxiv.org/abs/2406.15786
+
 [10]Eval Harness https://github.com/EleutherAI/lm-evaluation-harness
 
 ## Datasets
