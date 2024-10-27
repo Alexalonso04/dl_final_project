@@ -38,8 +38,8 @@ Overall, these approaches represent a sample of state-of-the-art methods that we
 [10] Eval Harness https://github.com/EleutherAI/lm-evaluation-harness
 
 ## Datasets
-FineWeb Edu 10B token Dataset: https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu/tree/main/sample/10BT
+* FineWeb Edu 10B token Dataset: https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu/tree/main/sample/10BT
 
 Fine Tuning:
- Conversational Question Answering, https://stanfordnlp.github.io/coqa/
-CommonsenseQA, https://huggingface.co/datasets/tau/commonsense_qa
+* Conversational Question Answering, https://stanfordnlp.github.io/coqa/
+* CommonsenseQA, https://huggingface.co/datasets/tau/commonsense_qa
