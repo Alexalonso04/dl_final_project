@@ -9,18 +9,6 @@ from huggingface_hub import hf_hub_download
 from typing import Iterator, Tuple, Literal, Optional
 from dataclasses import dataclass
 
-@dataclass
-class DataConfig:
-    # Data source configuration
-    data_mode: Literal['cached', 'full', 'local'] = 'cached'  # Which dataset version to use
-    cache_dir: str = "data/cache"  # For cached version
-    full_data_dir: str = "data/edu_fineweb10B"  # For full version
-    local_data_path: Optional[str] = None  # For local version
-    
-    # Dataset parameters
-    num_train_chunks: int = 103  # Only used for cached version
-    use_cached: bool = False  # Deprecated, use data_mode instead
-
 class DatasetManager:
     """Manages dataset downloading and preparation"""
     
