@@ -9,6 +9,8 @@ from huggingface_hub import hf_hub_download
 from typing import Iterator, Tuple, Literal, Optional
 from dataclasses import dataclass
 
+from configs.config import DataConfig
+
 class DatasetManager:
     """Manages dataset downloading and preparation"""
     
