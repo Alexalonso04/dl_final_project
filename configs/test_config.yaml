@@ -1,0 +1,60 @@
+model: # BASE
+  model_type: base  # Options: base, differential, selective
+  block_size: 1024
+  vocab_size: 50257
+  n_layer: 12 
+  n_head: 12
+  n_embd: 768
+  dropout: 0.0
+  bias: true
+  #diff_lambda_init: 0.8  # Optional, only for differential. CAUTION: For testing only. Overrides lambda init function
+  sel_topk: 256  # Optional, only used for selective
+
+training:
+  # Batch sizes
+  total_batch_size: 524288  # ~0.5M tokens
+  micro_batch_size: 64
+  sequence_length: 1024
+  
+  # Learning rate settings
+  max_lr: 6.0e-4
+  min_lr: 6.0e-5
+  warmup_steps: 715
+  max_steps: 19073
+  
+  # Optimization settings
+  weight_decay: 0.0
+  grad_clip: 1.0
+  
+  # Training loop settings
+  validate_every: 250
+  save_every: 5000
+  eval_samples: 20
+  
+  # Hardware settings
+  device: "cuda"
+  mixed_precision: true
+
+optimizer:
+  type: muon  # Options: adamw, muon
+  # Muon specific settings (only used when type = muon)
+  momentum: 0.95
+  nesterov: true
+  backend: newtonschulz5  # Options: svd, newtonschulz5
+  backend_steps: 5
+
+data:
+  data_mode: "cached"  # Options: cached, full, local
+  cache_dir: "data/cache"  # For cached version
+  full_data_dir: "data/edu_fineweb10B"  # For full version - Data will be downloaded here
+  local_data_path: "data/edu_fineweb10B_old"  # For local version - Data will be read from here
+  num_train_chunks: 10  # Only used for cached version
+
+debug: # TODO: re-add debugging. Current ver uses debug_train_script
+  enabled: false
+  log_level: "INFO"
+  log_tensors: false
+  cuda_launch_blocking: false
+
+save_dir: "checkpoints"
+log_dir: "logs"
