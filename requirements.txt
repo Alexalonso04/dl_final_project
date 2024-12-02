@@ -1,0 +1,8 @@
+numpy
+tqdm
+torch
+huggingface-hub
+tiktoken
+transformers
+datasets
+triton
