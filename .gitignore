@@ -5,3 +5,4 @@
 /debug_logs/
 /log/model*
 /hellaswag/
+.env/
