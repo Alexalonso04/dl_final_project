@@ -6,3 +6,5 @@ tiktoken
 transformers
 datasets
 triton
+regex
+matplotlib
