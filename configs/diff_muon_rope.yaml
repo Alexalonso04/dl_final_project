@@ -1,5 +1,5 @@
 model: # BASE
-  model_type: base  # Options: base, differential, selective
+  model_type: differential  # Options: base, differential, selective
   block_size: 1024
   vocab_size: 50257
   n_layer: 12 
@@ -9,6 +9,7 @@ model: # BASE
   bias: true
   #diff_lambda_init: 0.8  # Optional, only for differential. CAUTION: For testing only. Overrides lambda init function
   sel_topk: 256  # Optional, only used for selective
+
   use_rope: true
   use_relu_square: true
   clamp_logits: true
@@ -16,23 +17,23 @@ model: # BASE
 training:
   # Batch sizes
   total_batch_size: 524288  # ~0.5M tokens
-  micro_batch_size: 16
+  micro_batch_size: 54
   sequence_length: 1024
   
-  # AdamW Learning rate settings
+  # Learning rate settings
   max_lr: .0036
   min_lr: 6.0e-5
-  warmup_steps: 192
-  cooldown_steps: 192
-  max_steps: 5120 
+  warmup_steps: 100
+  cooldown_steps: 100
+  max_steps: 2000 
   
   # Optimization settings
   weight_decay: 0.0
   grad_clip: 1.0
   
   # Training loop settings
-  validate_every: 140
-  save_every: 100
+  validate_every: 100
+  save_every: 1000
   eval_samples: 20
   
   # Hardware settings
@@ -40,9 +41,8 @@ training:
   mixed_precision: true
 
 optimizer:
-  type: adamw  # Options: adamw, muon
+  type: muon  # Options: adamw, muon
   # Muon specific settings (only used when type = muon)
-  muon_warmup_steps: 0
   momentum: 0.95
   nesterov: true
   backend: newtonschulz5  # Options: svd, newtonschulz5
