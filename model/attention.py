@@ -85,8 +85,6 @@ class DifferentialAttention(BaseAttention):
         super().__init__()
         assert config.n_embd % config.n_head == 0
         self.use_rope = config.use_rope
-
-        
         # For DIFF transformer, use half the number of heads since each has 2 components
         self.n_head = config.n_head // 2
         self.n_embd = config.n_embd
