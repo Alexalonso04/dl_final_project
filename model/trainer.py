@@ -15,11 +15,17 @@ from datetime import datetime
 from configs.config import Config
 from model.transformer import GPT
 from data.data import create_dataloader
+from model.optimizers import Muon
 
 class Trainer:
     def __init__(self, config: Config):
         self.config = config
-        
+        self.start_time = datetime.now().strftime("%m_%d_%y_%H%M")
+        self.model_type = self.config.model.model_type
+        self.optim_type = self.config.optimizer.type
+        self.use_rope =  'rope_' if self.config.model.use_rope else ''
+        self.path_prefix = f'{self.model_type}_{self.optim_type}_{self.use_rope}{self.start_time}'
+
         self.step = 0
         self.setup_distributed()
         self.setup_logging()
@@ -52,8 +58,7 @@ class Trainer:
             os.makedirs(self.config.log_dir, exist_ok=True)
             
             # Generate timestamp for log filename
-            current_time = datetime.now().strftime("%m_%d_%y_%H%M")
-            log_filename = f"{current_time}_train.log"
+            log_filename = f"{self.path_prefix}_train.log"
             
             # Set up logging configuration
             log_level = getattr(logging, self.config.debug.log_level.upper())
@@ -92,6 +97,10 @@ class Trainer:
             logging.info("\nTraining Configuration:")
             for key, value in vars(self.config.training).items():
                 logging.info(f"  {key}: {value}")
+
+            logging.info("\Optimizer Configuration:")
+            for key, value in vars(self.config.optimizer).items():
+                logging.info(f"  {key}: {value}")
                 
             logging.info("\nData Configuration:")
             for key, value in vars(self.config.data).items():
@@ -122,9 +131,6 @@ class Trainer:
     def setup_model(self):
         model = GPT(self.config)  
 
-        # Set float32 matmul precision to high
-        torch.set_float32_matmul_precision('high')
-
         model.to(self.device)
 
         if self.ddp:
@@ -153,54 +159,208 @@ class Trainer:
             self.world_size,
             vocab_size=self.config.model.vocab_size
         )
+
+    def configure_optimizers_og(self, weight_decay, learning_rate, device_type):
+        
+        if hasattr(self.config, 'optimizer') and self.config.optimizer.type == 'muon':
+            fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
+            use_fused = fused_available and device_type == "cuda"
+            
+            # 1. Embedding optimizer
+            embedding_opt = torch.optim.Adam(
+                [self.transformer.wte.weight],
+                lr=0.3,
+                betas=(0.9, 0.95),
+                fused=use_fused,
+                weight_decay = weight_decay
+            )
+            
+            # 2. LM head optimizer
+            lm_head_opt = torch.optim.Adam(
+                [self.lm_head.weight],
+                lr=0.003,
+                betas=(0.9, 0.95),
+                fused=use_fused,
+                weight_decay = weight_decay
+            )
+            
+            # 3. Split transformer block parameters
+            muon_params = []
+            other_params = []
+            
+            for name, param in self.transformer.h.named_parameters():
+                if param.dim() == 2:  # Only 2D tensors go to Muon
+                    muon_params.append(param)
+                else:
+                    other_params.append(param)
+            
+            # Create Muon optimizer for 2D params
+            muon_opt = Muon(
+                muon_params,
+                lr=0.02,
+                momentum=self.config.optimizer.momentum,
+                nesterov=self.config.optimizer.nesterov,
+                ns_steps=self.config.optimizer.backend_steps
+            )
+            
+            # Create Adam for remaining transformer params (biases etc)
+            if other_params:  # Only create if we have params to optimize
+                other_opt = torch.optim.Adam(
+                    other_params,
+                    lr=0.02,  # Use same lr as Muon for transformer parts
+                    betas=(0.9, 0.95),
+                    fused=use_fused,
+                    weight_decay= weight_decay
+                )
+                return [embedding_opt, lm_head_opt, muon_opt, other_opt]
+                
+            return [embedding_opt, lm_head_opt, muon_opt]
+        
+        else:
+            # Original AdamW logic
+            param_dict = {pn: p for pn, p in self.named_parameters() if p.requires_grad}
+            optim_groups = [
+                {'params': [p for p in param_dict.values() if p.dim() >= 2], 'weight_decay': weight_decay},
+                {'params': [p for p in param_dict.values() if p.dim() < 2], 'weight_decay': 0.0}
+            ]
+            fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
+            use_fused = fused_available and device_type == "cuda"
+            optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=(0.9, 0.95), fused=use_fused, weight_decay=weight_decay)
+            return optimizer
+        
+    def configure_optimizers(self, weight_decay, learning_rate, device_type):
+        
+        if hasattr(self.config, 'optimizer') and self.config.optimizer.type == 'muon':
+            fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
+            use_fused = fused_available and device_type == "cuda"
+            
+            # 1. Embedding optimizer
+            embedding_opt = torch.optim.Adam(
+                [self.raw_model.transformer.wte.weight],
+                lr=0.6,
+                betas=(0.8, 0.95),
+                fused=use_fused,
+                weight_decay = weight_decay
+            )
+            
+            # 2. LM head optimizer
+            lm_head_opt = torch.optim.Adam(
+                [self.raw_model.lm_head.weight],
+                lr=0.008,
+                betas=(0.8, 0.95),
+                fused=use_fused,
+                weight_decay = weight_decay
+            )
+            
+            # 3. Split transformer block parameters
+            muon_params = []
+            other_params = []
+            
+            for name, param in self.raw_model.transformer.h.named_parameters():
+                if param.dim() == 2:  # Only 2D tensors go to Muon
+                    muon_params.append(param)
+                else:
+                    other_params.append(param)
+            
+            # Create Muon optimizer for 2D params
+            muon_opt = Muon(
+                muon_params,
+                lr=0.05,
+                momentum=self.config.optimizer.momentum,
+                nesterov=self.config.optimizer.nesterov,
+                ns_steps=self.config.optimizer.backend_steps
+            )
+            
+            # Create Adam for remaining transformer params (biases etc)
+            if other_params:  # Only create if we have params to optimize
+                other_opt = torch.optim.Adam(
+                    other_params,
+                    lr=0.04,  
+                    betas=(0.8, 0.95),
+                    fused=use_fused,
+                    weight_decay= weight_decay
+                )
+                return [embedding_opt, lm_head_opt, muon_opt, other_opt]
+                
+            return [embedding_opt, lm_head_opt, muon_opt]
+        
+        else:
+            # Original AdamW logic
+            param_dict = {pn: p for pn, p in self.named_parameters() if p.requires_grad}
+            optim_groups = [
+                {'params': [p for p in param_dict.values() if p.dim() >= 2], 'weight_decay': weight_decay},
+                {'params': [p for p in param_dict.values() if p.dim() < 2], 'weight_decay': 0.0}
+            ]
+            fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
+            use_fused = fused_available and device_type == "cuda"
+            optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=(0.9, 0.95), fused=use_fused, weight_decay=weight_decay)
+            return optimizer
     
     def setup_optimizer(self):
-        # Configure base optimizers with their target learning rates
-        optimizers = self.raw_model.configure_optimizers(
+        optimizers = self.configure_optimizers(
             self.config.training.weight_decay,
             self.config.training.max_lr,
             device_type="cuda" if self.device.startswith("cuda") else "cpu"
         )
 
-        if not isinstance(optimizers, list):
-            optimizers = [optimizers]
+        # Ensure self.optimizers is always a list
+        if isinstance(optimizers, torch.optim.Optimizer):
+            self.optimizers = [optimizers]
+        else:
+            # It's already a list
+            self.optimizers = optimizers
 
-        # Create schedulers for each optimizer
-        self.schedulers = [
-            torch.optim.lr_scheduler.LambdaLR(opt, lambda step: self.get_lr())
-            for opt in optimizers
-        ]
+        if self.config.optimizer.type == 'muon':
+            # Create schedulers for each optimizer
+            self.schedulers = [torch.optim.lr_scheduler.LambdaLR(opt, self.get_lr_muon) for opt in optimizers]
 
-        self.optimizers = optimizers
-    
         self.grad_accum_steps = (
-            self.config.training.total_batch_size // 
-            (self.config.training.micro_batch_size * 
-             self.config.training.sequence_length * 
+            self.config.training.total_batch_size //
+            (self.config.training.micro_batch_size *
+             self.config.training.sequence_length *
              self.world_size)
         )
     
-    def get_lr(self) -> float:
+    def get_lr_muon(self, step) -> float:
         """Get learning rate multiplier based on step - follows warmup->constant->warmdown pattern"""
         assert self.step <= self.config.training.max_steps
         warmup_steps = self.config.training.warmup_steps
-        warmdown_steps = 1300
         max_steps = self.config.training.max_steps
-
-        # TODO: Update this to latest version of modded-nanoGPT. Someone found performance improvements since last pull. 
+        cooldown_steps = self.config.training.cooldown_steps
 
         # 1) linear warmup
         if self.step < warmup_steps: 
-            return .0036 # return (it+1) / args.warmup_iters
+            return (self.step+1) / warmup_steps
 
         # 2) constant lr until warmdown
-        elif self.step < (max_steps - warmdown_steps):
+        elif self.step < (max_steps - cooldown_steps):
             return 1.0
 
-        # 3) linear warmdown
+        # 3) linear cooldown
         else:
-            decay_ratio = (max_steps - self.step) / warmdown_steps
+            decay_ratio = (max_steps - self.step) / cooldown_steps
             return decay_ratio
+
+    def get_lr_adamW(self) -> float:
+        """Get learning rate multiplier based on step"""
+        warmup_steps = self.config.training.warmup_steps
+        max_lr = self.config.training.max_lr
+        min_lr = self.config.training.min_lr
+        max_steps = self.config.training.max_steps
+
+        # 1) linear warmup
+        if self.step < warmup_steps: 
+            return max_lr * (self.step + 1) / warmup_steps
+
+        # 2) constant lr until warmdown
+        elif self.step > max_steps:
+            return min_lr
+
+        decay_ratio = (self.step - warmup_steps) / (max_steps - warmup_steps)
+        assert 0 <= decay_ratio <= 1
+        coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff starts at 1 and goes to 0
+        return min_lr + coeff * (max_lr - min_lr)
+
 
 
     def evaluate(self) -> float:
@@ -228,10 +388,15 @@ class Trainer:
         """Save model checkpoint with support for multiple optimizers"""
         if not self.is_master_process:
             return
+        
+        if self.config.optimizer.type == 'muon':
+            optimizer_state = [opt.state_dict() for opt in self.optimizers]
+        else:
+            optimizer_state = self.optimizers[0].state_dict()
 
         checkpoint = {
             'model': self.raw_model.state_dict(),
-            'optimizer_states': [opt.state_dict() for opt in self.optimizers],
+            'optimizer_states': optimizer_state,
             'config': self.config,
             'step': self.step,
             'val_loss': loss
@@ -239,9 +404,10 @@ class Trainer:
 
         path = Path(self.config.save_dir)
         path.mkdir(parents=True, exist_ok=True)
+        
 
-        checkpoint_path = path / f'checkpoint_{self.step:06d}.pt'
-        best_path = path / 'checkpoint_best.pt'
+        checkpoint_path = path / f'{self.path_prefix}_checkpoint_{self.step:06d}.pt'
+        best_path = path / f'{self.path_prefix}_checkpoint_best.pt'
 
         torch.save(checkpoint, checkpoint_path)
         if loss < self.best_val_loss:
@@ -250,36 +416,28 @@ class Trainer:
 
     def load_checkpoint(self, path: str):
         """Load model checkpoint with support for multiple optimizers"""
-        checkpoint = torch.load(path, map_location=self.device)
+        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
 
         # Load model state
         self.raw_model.load_state_dict(checkpoint['model'])
+        self.config = checkpoint['config']
 
-        # Handle both single-optimizer checkpoints and new muon ones
-        if 'optimizer_states' in checkpoint:
-            assert len(checkpoint['optimizer_states']) == len(self.optimizers), (
-                f"Checkpoint has {len(checkpoint['optimizer_states'])} optimizers but "
-                f"model was configured with {len(self.optimizers)} optimizers"
-            )
+        if self.config.optimizer.type == 'adamw':
+            self.optimizers[0].load_state_dict(checkpoint['optimizer_states'])
+        else:
             for opt, state in zip(self.optimizers, checkpoint['optimizer_states']):
                 opt.load_state_dict(state)
-        elif 'optimizer' in checkpoint:
-            # Old format with single optimizer
-            logging.warning("Loading legacy checkpoint format with single optimizer")
-            if len(self.optimizers) == 1:
-                self.optimizers[0].load_state_dict(checkpoint['optimizer'])
-            else:
-                logging.warning("Model configured with multiple optimizers but "
-                              "loading from single-optimizer checkpoint. "
-                              "Optimizer states will be fresh initialized.")
 
         self.step = checkpoint['step']
-        self.best_val_loss = checkpoint.get('val_loss', float('inf'))
+        self.val_loss = checkpoint.get('val_loss', float('inf'))
     
     def train_step(self):
         # Zero gradients
-        for opt in self.optimizers:
-            opt.zero_grad()
+        if self.config.optimizer.type == 'muon':
+            for opt in self.optimizers:
+                opt.zero_grad()
+        else:
+            self.optimizers[0].zero_grad()
 
         loss_accum = 0.0
 
@@ -303,10 +461,16 @@ class Trainer:
 
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.training.grad_clip)
 
-        # Step optimizers and their schedulers
-        for opt, scheduler in zip(self.optimizers, self.schedulers):
-            opt.step()
-            scheduler.step()
+        if self.config.optimizer.type == 'muon':
+            # Step optimizers and their schedulers
+            for opt, scheduler in zip(self.optimizers, self.schedulers):
+                opt.step()
+                scheduler.step()
+        else:
+            lr = self.get_lr_adamW()
+            for param_group in self.optimizers[0].param_groups:
+                param_group['lr'] = lr
+            self.optimizers[0].step()
 
         return loss_accum.item()
     
@@ -316,13 +480,13 @@ class Trainer:
 
         if self.is_master_process:
             logging.info(f"Starting training, total steps: {self.config.training.max_steps}")
-            if len(self.optimizers) > 1:
-                logging.info("Using multiple optimizers:")
+            if self.config.optimizer.type == 'muon':
+                logging.debug("Using multiple optimizers:")
                 for i, opt in enumerate(self.optimizers):
-                    logging.info(f"Optimizer {i}: {opt.__class__.__name__}")
+                    logging.debug(f"Optimizer {i}: {opt.__class__.__name__}")
                     for group in opt.param_groups:
                         params_shape = [tuple(p.shape) for p in group['params']]
-                        logging.info(f"  Parameter shapes: {params_shape}")
+                        logging.debug(f"  Parameter shapes: {params_shape}")
 
         while self.step < self.config.training.max_steps:
             t0 = time.time()
@@ -330,36 +494,28 @@ class Trainer:
             loss = self.train_step()
 
             if self.step % self.config.training.validate_every == 0:
-                val_loss = self.evaluate()
+                self.val_loss = self.evaluate()
                 if self.is_master_process:
-                    lrs = self.get_lr()
-                    if isinstance(lrs, list):
-                        lr_str = "lrs=[" + ",".join(f"{lr:.2e}" for lr in lrs) + "]"
-                    else:
-                        lr_str = f"lr={lrs:.2e}"
+                    
                     logging.info(
                         f"Step {self.step}: train_loss={loss:.4f}, "
-                        f"val_loss={val_loss:.4f}, {lr_str}"
+                        f"val_loss={self.val_loss:.4f}"
                     )
 
             if self.step % self.config.training.save_every == 0:
-                self.save_checkpoint(val_loss)
+                self.save_checkpoint(self.val_loss)
 
             dt = time.time() - t0
             if self.is_master_process:
-                lrs = self.get_lr()
-                if isinstance(lrs, list):
-                    lr_str = "lrs=[" + ",".join(f"{lr:.2e}" for lr in lrs) + "]"
-                else:
-                    lr_str = f"lr={lrs:.2e}"
+                
                 logging.info(f"Step {self.step}: train_loss={loss:.4f}, "
-                           f"time={dt*1000:.2f}ms/step, {lr_str}")
+                           f"time={dt*1000:.2f}ms/step")
 
             self.step += 1
 
         # Final evaluation and save
-        val_loss = self.evaluate()
-        self.save_checkpoint(val_loss)
+        self.val_loss = self.evaluate()
+        self.save_checkpoint(self.val_loss)
 
         if self.ddp:
             destroy_process_group()

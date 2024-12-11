@@ -9,17 +9,19 @@ model: # BASE
   bias: true
   #diff_lambda_init: 0.8  # Optional, only for differential. CAUTION: For testing only. Overrides lambda init function
   sel_topk: 256  # Optional, only used for selective
+  use_rope: true
 
 training:
   # Batch sizes
   total_batch_size: 524288  # ~0.5M tokens
-  micro_batch_size: 64
+  micro_batch_size: 54
   sequence_length: 1024
   
-  # Learning rate settings
-  max_lr: 6.0e-4
+  # AdamW Learning rate settings
+  max_lr: .0036
   min_lr: 6.0e-5
   warmup_steps: 192
+  cooldown_steps: 192
   max_steps: 5120 
   
   # Optimization settings
@@ -28,7 +30,7 @@ training:
   
   # Training loop settings
   validate_every: 140
-  save_every: 1342
+  save_every: 100
   eval_samples: 20
   
   # Hardware settings
@@ -36,8 +38,9 @@ training:
   mixed_precision: true
 
 optimizer:
-  type: adamw  # Options: adamw, muon
+  type: muon  # Options: adamw, muon
   # Muon specific settings (only used when type = muon)
+  muon_warmup_steps: 0
   momentum: 0.95
   nesterov: true
   backend: newtonschulz5  # Options: svd, newtonschulz5

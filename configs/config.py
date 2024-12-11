@@ -30,7 +30,9 @@ class TrainingConfig:
     # Learning rate settings
     max_lr: float = 6e-4
     min_lr: float = 6e-5
-    warmup_steps: int = 715
+    warmup_steps: int = 192
+    cooldown_steps: int = 192
+
     max_steps: int = 19073
     
     # Optimization settings
@@ -56,6 +58,9 @@ class ModelConfig:
     n_embd: int = 768
     dropout: float = 0.1
     bias: bool = True
+
+    use_rope: bool = True
+
     
     # Special attention parameters
     diff_lambda_init: Optional[float] = None  # For differential attention
@@ -69,6 +74,7 @@ class OptimizerConfig:
     nesterov: bool = True
     backend: Literal['svd', 'newtonschulz5'] = 'newtonschulz5'
     backend_steps: int = 5
+    muon_warmup_steps: int = 0
 
 @dataclass
 class Config:
