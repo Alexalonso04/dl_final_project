@@ -24,7 +24,7 @@ def log_extractor(path: str) -> tuple[list[np.int16], list[np.float16], list[np.
     for info in matches:
         step = np.int16(info.group("step"))
         loss = np.float16(info.group("train_loss"))
-        step_time = np.float16(info.group("step_time"))
+        step_time = np.float32(info.group("step_time"))
         learning_rate = np.float16(info.group("learning_rate"))
 
         steps.append(step)
@@ -76,8 +76,42 @@ def plot_time_vs_steps(steps: list[np.int16], steps_a, times: list[np.float16], 
     plt.savefig('report/images/time_vs_steps.png', dpi=300)
     plt.show()
 
-step_list, loss_list, times, lr = log_extractor(path="diff_losses.log")
-step_list_a, loss_list_a, times_a, lr_a = log_extractor(path="base_losses.log")
+def time_bar_plot(total_time_a, total_time_b):
 
-plot_loss_vs_steps(step_list, step_list_a, loss_list, loss_list_a)
-plot_time_vs_steps(step_list, step_list_a, times, times_a)
+    fig, ax = plt.subplots()
+
+    models = ['Base', 'Differential']
+    training_time = [total_time_b/60000/60, total_time_a/60000/60]
+    bar_colors = ['tab:orange', 'tab:blue']
+
+    ax.bar(models, training_time, color=bar_colors, width=0.3)
+
+    # # Add horizontal lines
+    # ax.axhline(y=training_time[0], color='tab:orange', linestyle='--')
+    ax.axhline(y=training_time[1], xmin=0.04, xmax=0.95, color='tab:blue', linestyle='--')
+
+    # Add arrow annotation
+    ax.annotate('', xy=(0.03, training_time[0]), xytext=(0.03, training_time[1]),
+                arrowprops=dict(arrowstyle='<->', color='black'))
+
+    # Add text annotation for the difference
+    diff = abs(training_time[0] - training_time[1])
+    ax.text(0.05, (training_time[0] + training_time[1]) / 2, f'{diff:.2f} hrs', 
+            va='center', ha='left', color='black', fontsize=10)
+
+    ax.set_xlabel('Models')
+    ax.set_ylabel('Time (hrs)')
+    ax.set_title('Total Training Time')
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+    plt.tight_layout()
+    plt.savefig('report/images/training_times.png', dpi=300)
+    plt.show()
+    
+step_list, loss_list, times_a, lr = log_extractor(path="diff_losses.log")
+step_list_a, loss_list_a, times_b, lr_a = log_extractor(path="base_losses.log")
+
+# plot_loss_vs_steps(step_list, step_list_a, loss_list, loss_list_a)
+# plot_time_vs_steps(step_list, step_list_a, times, times_a)
+
+time_bar_plot(np.sum(times_a), np.sum(times_b))
