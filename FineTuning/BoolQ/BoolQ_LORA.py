@@ -2,13 +2,13 @@
 # https://huggingface.co/docs/datasets/en/loading
 # https://huggingface.co/docs/bitsandbytes/v0.43.2/fsdp_qlora
 
-from transformers import AutoModelForSequenceClassification, BitsAndBytesConfig, AutoTokenizer,DataCollatorWithPadding
+from transformers import AutoModel, AutoTokenizer,DataCollatorWithPadding, AutoModelForSequenceClassification
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import numpy as np
 import evaluate
 
-tokenizer = AutoTokenizer.from_pretrained("gpt2")
+tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.add_special_tokens({"pad_token": "<PAD>"})
 
@@ -29,10 +29,9 @@ def preprocess_data(examples):
         examples["question"],
         examples["passage"],
         truncation=True,
-        padding="max_length",
-        max_length=512
+        padding=True
     )
-    tokenized["labels"] = [1 if label == "true" else 0 for label in examples["answer"]]
+    tokenized["labels"] = [1 if label == True else 0 for label in examples["answer"]]
     return tokenized
 
 encoded_train_df = train_df.map(preprocess_data, batched=True)
@@ -48,19 +47,12 @@ del val_df
 # Load in model
 #-----------------------------------------------------------------------------------------------------------------------
 
-# cannot do 4bit look into how to do 8bit
-quantization_config = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_use_double_quant=True)
-
-
-model = AutoModelForSequenceClassification.from_pretrained("openai-community/gpt2",
-                                              device_map = 'auto',
-                                              #quantization_config=quantization_config,
-                                             )
+model = AutoModelForSequenceClassification.from_pretrained("google-bert/bert-base-uncased",
+                                                   num_labels=2)
 
 # so GPT2 doesnt have padding?? so need to change embedding size
 model.resize_token_embeddings(len(tokenizer))
 model.config.pad_token_id = model.config.eos_token_id
-model.config.num_labels = 2
 
 peft_config = LoraConfig(
                         lora_alpha=16,
@@ -68,8 +60,7 @@ peft_config = LoraConfig(
                         r=8,
                         bias="none",
                         task_type="SEQ_CLS",
-                        target_modules="all-linear",
-                        fan_in_fan_out = True
+                        target_modules="all-linear"
                         )
 
 model = get_peft_model(
@@ -114,6 +105,8 @@ trainer = Trainer(
     tokenizer=tokenizer,
     compute_metrics=compute_metrics,
 )
+results = trainer.evaluate()
+print(results)
 
 results = trainer.train()
 

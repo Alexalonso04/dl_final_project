@@ -19,7 +19,7 @@ accuracy = evaluate.load("accuracy")
 # Tokenizer
 #-----------------------------------------------------------------------------------------------------------------------
 
-tokenizer = AutoTokenizer.from_pretrained("gpt2")
+tokenizer = AutoTokenizer.from_pretrained("google-bert/bert-base-uncased")
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.add_special_tokens({"pad_token": "<PAD>"})
 
@@ -145,7 +145,7 @@ args = TrainingArguments(
     logging_dir="logs",
     logging_strategy="steps",
     per_device_train_batch_size=8,
-    learning_rate=6.0e-4,
+    learning_rate=6.0e-5,
     weight_decay=0.1,
     max_grad_norm=1.0,
     #fp16=True,
@@ -166,6 +166,8 @@ trainer = Trainer(
 #-----------------------------------------------------------------------------------------------------------------------
 # Loop
 #-----------------------------------------------------------------------------------------------------------------------
+results = trainer.evaluate()
+print(results)
 
 results = trainer.train()
 
