@@ -113,7 +113,7 @@ class GPT(nn.Module):
             # 1. Embedding optimizer
             embedding_opt = torch.optim.Adam(
                 [self.transformer.wte.weight],
-                lr=0.6,
+                lr=0.06,
                 betas=(0.8, 0.95),
                 fused=use_fused,
                 weight_decay = weight_decay
@@ -141,7 +141,7 @@ class GPT(nn.Module):
             # Create Muon optimizer for 2D params
             muon_opt = Muon(
                 muon_params,
-                lr=0.05,
+                lr=0.005,
                 momentum=self.config.optimizer.momentum,
                 nesterov=self.config.optimizer.nesterov,
                 ns_steps=self.config.optimizer.backend_steps
@@ -151,7 +151,7 @@ class GPT(nn.Module):
             if other_params:  # Only create if we have params to optimize
                 other_opt = torch.optim.Adam(
                     other_params,
-                    lr=0.04, 
+                    lr=0.004, 
                     betas=(0.8, 0.95),
                     fused=use_fused,
                     weight_decay= weight_decay

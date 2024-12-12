@@ -34,6 +34,9 @@ class Trainer:
         self.debug = config.debug
         
         self.best_val_loss = float('inf')
+        self.tokens_processed = 0
+        self.total_training_time = 0
+        
     
     def setup_distributed(self):
         self.ddp = int(os.environ.get('RANK', -1)) != -1
@@ -271,7 +274,7 @@ class Trainer:
         """Save model checkpoint with support for multiple optimizers"""
         if not self.is_master_process:
             return
-        
+
         if self.config.optimizer.type == 'muon':
             optimizer_state = [opt.state_dict() for opt in self.optimizers]
         else:
@@ -282,7 +285,9 @@ class Trainer:
             'optimizer_states': optimizer_state,
             'config': self.config,
             'step': self.step,
-            'val_loss': loss
+            'val_loss': loss,
+            'tokens_processed': self.tokens_processed,
+            'total_training_time': self.total_training_time
         }
 
         path = Path(self.config.save_dir)
@@ -313,6 +318,8 @@ class Trainer:
 
         self.step = checkpoint['step']
         self.val_loss = checkpoint.get('val_loss', float('inf'))
+        self.tokens_processed = checkpoint.get('tokens_processed', 0)
+        self.total_training_time = checkpoint.get('total_training_time', 0.0)
     
     def train_step(self):
         # Zero gradients
@@ -323,10 +330,15 @@ class Trainer:
             self.optimizers[0].zero_grad()
 
         loss_accum = 0.0
+        tokens_in_step = 0
 
         for micro_step in range(self.grad_accum_steps):
             x, y = self.train_loader.__next__()
             x, y = x.to(self.device), y.to(self.device)
+
+            # Count tokens in this batch
+            tokens_in_batch = x.numel() * self.world_size
+            tokens_in_step += tokens_in_batch
 
             if self.ddp:
                 self.model.require_backward_grad_sync = (micro_step == self.grad_accum_steps - 1)
@@ -355,7 +367,9 @@ class Trainer:
                 param_group['lr'] = lr
             self.optimizers[0].step()
 
-        return loss_accum.item()
+        self.tokens_processed += tokens_in_step
+
+        return loss_accum.item(), tokens_in_step
     
     def train(self):
         """Main training loop with support for multiple optimizers"""
@@ -371,28 +385,42 @@ class Trainer:
                         params_shape = [tuple(p.shape) for p in group['params']]
                         logging.debug(f"  Parameter shapes: {params_shape}")
 
+        training_start_time = time.time()
+
         while self.step < self.config.training.max_steps:
             t0 = time.time()
 
-            loss = self.train_step()
+            loss, tokens_in_step = self.train_step()
+
+            dt = time.time() - t0
+            self.total_training_time += dt
+
+            # Calculate throughput metrics
+            tokens_per_second = tokens_in_step / dt
+            avg_throughput = self.tokens_processed / self.total_training_time
 
             if self.step % self.config.training.validate_every == 0:
                 self.val_loss = self.evaluate()
                 if self.is_master_process:
-                    
                     logging.info(
-                        f"Step {self.step}: train_loss={loss:.4f}, "
-                        f"val_loss={self.val_loss:.4f}"
+                        f"Step {self.step}: "
+                        f"train_loss={loss:.4f}, "
+                        f"val_loss={self.val_loss:.4f}, "
+                        f"tokens_processed={self.tokens_processed:,}, "
+                        f"tokens_per_second={tokens_per_second:.2f}, "
+                        f"avg_throughput={avg_throughput:.2f} tokens/s"
                     )
 
             if self.step % self.config.training.save_every == 0:
                 self.save_checkpoint(self.val_loss)
 
-            dt = time.time() - t0
             if self.is_master_process:
-                
-                logging.info(f"Step {self.step}: train_loss={loss:.4f}, "
-                           f"time={dt*1000:.2f}ms/step")
+                logging.info(
+                    f"Step {self.step}: "
+                    f"train_loss={loss:.4f}, "
+                    f"time={dt*1000:.2f}ms/step, "
+                    f"tokens_per_second={tokens_per_second:.2f}"
+                )
 
             self.step += 1
 

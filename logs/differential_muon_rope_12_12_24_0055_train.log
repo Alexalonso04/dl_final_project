@@ -1,0 +1,113 @@
+2024-12-12 00:56:44,178 - INFO - === System Information ===
+2024-12-12 00:56:44,179 - INFO - Number of GPUs: 8
+2024-12-12 00:56:44,180 - INFO - GPU 0: NVIDIA H100 NVL
+2024-12-12 00:56:44,180 - INFO -   - Total memory: 93.00 GB
+2024-12-12 00:56:44,180 - INFO -   - Compute capability: 9.0
+2024-12-12 00:56:44,180 - INFO - GPU 1: NVIDIA H100 NVL
+2024-12-12 00:56:44,180 - INFO -   - Total memory: 93.00 GB
+2024-12-12 00:56:44,180 - INFO -   - Compute capability: 9.0
+2024-12-12 00:56:44,180 - INFO - GPU 2: NVIDIA H100 NVL
+2024-12-12 00:56:44,180 - INFO -   - Total memory: 93.00 GB
+2024-12-12 00:56:44,180 - INFO -   - Compute capability: 9.0
+2024-12-12 00:56:44,180 - INFO - GPU 3: NVIDIA H100 NVL
+2024-12-12 00:56:44,180 - INFO -   - Total memory: 93.00 GB
+2024-12-12 00:56:44,180 - INFO -   - Compute capability: 9.0
+2024-12-12 00:56:44,180 - INFO - GPU 4: NVIDIA H100 NVL
+2024-12-12 00:56:44,180 - INFO -   - Total memory: 93.00 GB
+2024-12-12 00:56:44,180 - INFO -   - Compute capability: 9.0
+2024-12-12 00:56:44,180 - INFO - GPU 5: NVIDIA H100 NVL
+2024-12-12 00:56:44,181 - INFO -   - Total memory: 93.00 GB
+2024-12-12 00:56:44,181 - INFO -   - Compute capability: 9.0
+2024-12-12 00:56:44,181 - INFO - GPU 6: NVIDIA H100 NVL
+2024-12-12 00:56:44,181 - INFO -   - Total memory: 93.00 GB
+2024-12-12 00:56:44,181 - INFO -   - Compute capability: 9.0
+2024-12-12 00:56:44,181 - INFO - GPU 7: NVIDIA H100 NVL
+2024-12-12 00:56:44,181 - INFO -   - Total memory: 93.00 GB
+2024-12-12 00:56:44,181 - INFO -   - Compute capability: 9.0
+2024-12-12 00:56:44,181 - INFO - PyTorch version: 2.6.0.dev20241203+cu124
+2024-12-12 00:56:44,181 - INFO - 
+=== Configuration ===
+2024-12-12 00:56:44,181 - INFO - 
+Model Configuration:
+2024-12-12 00:56:44,181 - INFO -   model_type: differential
+2024-12-12 00:56:44,181 - INFO -   block_size: 1024
+2024-12-12 00:56:44,181 - INFO -   vocab_size: 50257
+2024-12-12 00:56:44,181 - INFO -   n_layer: 12
+2024-12-12 00:56:44,181 - INFO -   n_head: 12
+2024-12-12 00:56:44,181 - INFO -   n_embd: 768
+2024-12-12 00:56:44,181 - INFO -   dropout: 0.0
+2024-12-12 00:56:44,181 - INFO -   bias: True
+2024-12-12 00:56:44,182 - INFO -   use_rope: True
+2024-12-12 00:56:44,182 - INFO -   use_relu_square: True
+2024-12-12 00:56:44,182 - INFO -   clamp_logits: True
+2024-12-12 00:56:44,182 - INFO -   diff_lambda_init: None
+2024-12-12 00:56:44,182 - INFO -   sel_topk: 256
+2024-12-12 00:56:44,182 - INFO - 
+Training Configuration:
+2024-12-12 00:56:44,182 - INFO -   total_batch_size: 524288
+2024-12-12 00:56:44,182 - INFO -   micro_batch_size: 54
+2024-12-12 00:56:44,182 - INFO -   sequence_length: 1024
+2024-12-12 00:56:44,182 - INFO -   max_lr: 0.0036
+2024-12-12 00:56:44,182 - INFO -   min_lr: 6e-05
+2024-12-12 00:56:44,182 - INFO -   warmup_steps: 100
+2024-12-12 00:56:44,182 - INFO -   cooldown_steps: 100
+2024-12-12 00:56:44,182 - INFO -   max_steps: 2000
+2024-12-12 00:56:44,182 - INFO -   weight_decay: 0.0
+2024-12-12 00:56:44,182 - INFO -   grad_clip: 1.0
+2024-12-12 00:56:44,182 - INFO -   validate_every: 100
+2024-12-12 00:56:44,182 - INFO -   save_every: 1000
+2024-12-12 00:56:44,182 - INFO -   eval_samples: 20
+2024-12-12 00:56:44,182 - INFO -   device: cuda
+2024-12-12 00:56:44,182 - INFO -   mixed_precision: True
+2024-12-12 00:56:44,182 - INFO - \Optimizer Configuration:
+2024-12-12 00:56:44,183 - INFO -   type: muon
+2024-12-12 00:56:44,183 - INFO -   momentum: 0.95
+2024-12-12 00:56:44,183 - INFO -   nesterov: True
+2024-12-12 00:56:44,183 - INFO -   backend: newtonschulz5
+2024-12-12 00:56:44,183 - INFO -   backend_steps: 5
+2024-12-12 00:56:44,183 - INFO -   muon_warmup_steps: 0
+2024-12-12 00:56:44,183 - INFO - 
+Data Configuration:
+2024-12-12 00:56:44,183 - INFO -   data_mode: cached
+2024-12-12 00:56:44,183 - INFO -   cache_dir: data/cache
+2024-12-12 00:56:44,183 - INFO -   full_data_dir: data/edu_fineweb10B
+2024-12-12 00:56:44,183 - INFO -   local_data_path: data/edu_fineweb10B_old
+2024-12-12 00:56:44,183 - INFO -   num_train_chunks: 10
+2024-12-12 00:56:44,183 - INFO - 
+Debug Configuration:
+2024-12-12 00:56:44,183 - INFO -   enabled: False
+2024-12-12 00:56:44,183 - INFO -   log_level: INFO
+2024-12-12 00:56:44,183 - INFO -   log_tensors: False
+2024-12-12 00:56:44,183 - INFO -   cuda_launch_blocking: False
+2024-12-12 00:56:44,183 - INFO - 
+Initial GPU Memory Usage:
+2024-12-12 00:56:44,185 - INFO - GPU 0:
+2024-12-12 00:56:44,185 - INFO -   - Allocated: 0.00 MB
+2024-12-12 00:56:44,185 - INFO -   - Reserved: 0.00 MB
+2024-12-12 00:56:44,185 - INFO - GPU 1:
+2024-12-12 00:56:44,185 - INFO -   - Allocated: 0.00 MB
+2024-12-12 00:56:44,185 - INFO -   - Reserved: 0.00 MB
+2024-12-12 00:56:44,186 - INFO - GPU 2:
+2024-12-12 00:56:44,186 - INFO -   - Allocated: 0.00 MB
+2024-12-12 00:56:44,186 - INFO -   - Reserved: 0.00 MB
+2024-12-12 00:56:44,186 - INFO - GPU 3:
+2024-12-12 00:56:44,186 - INFO -   - Allocated: 0.00 MB
+2024-12-12 00:56:44,186 - INFO -   - Reserved: 0.00 MB
+2024-12-12 00:56:44,187 - INFO - GPU 4:
+2024-12-12 00:56:44,187 - INFO -   - Allocated: 0.00 MB
+2024-12-12 00:56:44,187 - INFO -   - Reserved: 0.00 MB
+2024-12-12 00:56:44,187 - INFO - GPU 5:
+2024-12-12 00:56:44,187 - INFO -   - Allocated: 0.00 MB
+2024-12-12 00:56:44,187 - INFO -   - Reserved: 0.00 MB
+2024-12-12 00:56:44,188 - INFO - GPU 6:
+2024-12-12 00:56:44,188 - INFO -   - Allocated: 0.00 MB
+2024-12-12 00:56:44,188 - INFO -   - Reserved: 0.00 MB
+2024-12-12 00:56:44,188 - INFO - GPU 7:
+2024-12-12 00:56:44,188 - INFO -   - Allocated: 0.00 MB
+2024-12-12 00:56:44,188 - INFO -   - Reserved: 0.00 MB
+2024-12-12 00:56:44,188 - INFO - 
+=== Training Start ===
+2024-12-12 00:57:05,678 - INFO - Starting training, total steps: 2000
+2024-12-12 00:57:15,080 - INFO - Step 0: train_loss=10.9947, val_loss=9.0312, tokens_processed=442,368, tokens_per_second=82049.53, avg_throughput=82049.53 tokens/s
+2024-12-12 00:57:18,256 - INFO - Step 0: train_loss=10.9947, time=5391.47ms/step, tokens_per_second=82049.53
+2024-12-12 00:57:19,163 - INFO - Step 1: train_loss=8.9957, time=905.92ms/step, tokens_per_second=488310.19
